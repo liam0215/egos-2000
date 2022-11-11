@@ -87,6 +87,11 @@ int soft_mmu_free(int pid) {
  * as a course project. After this project, every process should have
  * its own set of page tables for translation.
  */
+/* PID page table base translation */
+struct pid_page_tables {
+    int allocated;      /* Does this PID have page tables allocated? */
+    unsigned int *root_page_table;  /* What is the address of this process' root page table? */
+} root_page_tables[16];
 
 #define FLAG_VALID_RWX 0xF
 #define FLAG_NEXT_LEVEL 0x1
@@ -107,12 +112,13 @@ void setup_identity_region(unsigned int addr, int npages) {
         leaf[vpn0 + i] = ((addr + i * PAGE_SIZE) >> 2) | FLAG_VALID_RWX;
 }
 
-void pagetable_identity_mapping() {
+void pagetable_identity_mapping(int pid) {
     /* Allocate the root page table and set the page table base (satp) */
     earth->mmu_alloc(&frame_id, (void**)&root);
     memset(root, 0, PAGE_SIZE);
-    /* Set the (1 << 31) bit of satp to enable Sv32 translation */
-    asm("csrw satp, %0" ::"r"(((unsigned int)root >> 12) | (1 << 31)));
+
+    root_page_tables[pid].allocated = 1;
+    root_page_tables[pid].root_page_table = root;
 
     /* Allocate the leaf page tables */
     setup_identity_region(0x02000000, 16);   /* CLINT */
@@ -123,6 +129,39 @@ void pagetable_identity_mapping() {
     setup_identity_region(0x80000000, 1024); /* DTIM memory */
 
     /* Translation will start when the earth main() invokes mret */
+}
+
+int page_table_mmu_map(int pid, int page_no, int frame_id) {
+    INFO("page_table_mmu_map: pid=%d, page_no=%x, frame_id=%x", pid, page_no, frame_id);
+    if (!root_page_tables[pid].allocated) {
+        /* Allocate a set of page tables for this process */
+        pagetable_identity_mapping(pid);
+    }
+
+    soft_mmu_map(pid, page_no, frame_id);
+
+    /* Setup the entry in the root page table */
+    int vpn1 = page_no >> 10;
+    unsigned int *leaf;
+    leaf = (unsigned int *)((root_page_tables[pid].root_page_table[vpn1] >> 1) << 3);
+
+    /* Setup the entry in the leaf page table */
+    unsigned int frame_address = FRAME_CACHE_START + frame_id * PAGE_SIZE;
+    int vpn0 = page_no & 0x3FF;
+    leaf[vpn0] = (frame_address >> 2) | FLAG_VALID_RWX;
+
+    INFO("RETURNING");
+}
+
+int page_table_mmu_switch(int pid) {
+    INFO("page_table_mmu_switch: pid=%d", pid);
+    asm("csrw satp, %0" ::"r"(((unsigned int)root_page_tables[pid].root_page_table >> 12) | (1 << 31)));
+    INFO("RETURNING");
+}
+
+int page_table_mmu_free(int pid) {
+    soft_mmu_free(pid);
+    root_page_tables[pid].allocated = 0;
 }
 
 /* Implementation of a Paging Device
@@ -215,15 +254,16 @@ void mmu_init() {
     earth->excp_register(NULL);
 
     earth->mmu_alloc = soft_mmu_alloc;
-    earth->mmu_map = soft_mmu_map;
-    earth->mmu_switch = soft_mmu_switch;
-    earth->mmu_free = soft_mmu_free;
+    earth->mmu_map = page_table_mmu_map;
+    earth->mmu_switch = page_table_mmu_switch;
+    earth->mmu_free = page_table_mmu_free;
 
     if (earth->platform == ARTY) {
         paging_init();
         earth->tty_info("Arty detected: Use software translation");
     } else {
-        pagetable_identity_mapping();
+        pagetable_identity_mapping(0);
+        page_table_mmu_switch(0);
         earth->tty_info("QEMU detected: Use software + page table translation");
     }
 }

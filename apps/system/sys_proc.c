@@ -18,9 +18,11 @@ static int app_spawn(struct proc_request *req);
 
 int main() {
     SUCCESS("Enter kernel process GPID_PROCESS");    
-
+    INFO("AAAAA");
+    
     int sender, shell_waiting;
     char buf[SYSCALL_MSG_LEN];
+    INFO("HERE");
 
     sys_spawn(SYS_FILE_EXEC_START);
     grass->sys_recv(NULL, buf, SYSCALL_MSG_LEN);
@@ -84,6 +86,7 @@ static int sys_proc_read(int block_no, char* dst) {
 }
 
 static void sys_spawn(int base) {
+    INFO("Sys spawn");
     int pid = grass->proc_alloc();
     INFO("Load kernel process #%d: %s", pid, sysproc_names[pid - 1]);
 

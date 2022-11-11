@@ -22,8 +22,9 @@ void excp_entry(int id) {
     /* Kill the process if curr_pid is a user app instead of a grass server */
 
     /* Student's code ends here. */
-
-    FATAL("excp_entry: kernel got exception %d", id);
+    unsigned mepc;
+    asm("csrr %0, mepc" : "=r"(mepc));
+    FATAL("excp_entry: kernel got exception %d with mepc: %x", id, mepc);
 }
 
 void proc_init() {
@@ -52,11 +53,14 @@ static void proc_set_status(int pid, int status) {
 }
 
 int proc_alloc() {
+    INFO("proc_alloc");
     static int proc_nprocs = 0;
     for (int i = 0; i < MAX_NPROCESS; i++)
         if (proc_set[i].status == PROC_UNUSED) {
+            INFO("proc_alloc: found unused process at %d", i);
             proc_set[i].pid = ++proc_nprocs;
             proc_set[i].status = PROC_LOADING;
+            INFO("RETURNING FROM PROC_ALLOC");
             return proc_nprocs;
         }
 

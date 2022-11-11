@@ -37,7 +37,7 @@ qemu:
 	@echo "$(YELLOW)-------- Simulate on QEMU-RISCV --------$(END)"
 	cp $(RELEASE)/earth.elf $(QEMU)/qemu.elf
 	$(OBJCOPY) --update-section .image=$(TOOLS)/disk.img $(QEMU)/qemu.elf
-	$(RISCV_QEMU) -readconfig $(QEMU)/sifive-e31.cfg -kernel $(QEMU)/qemu.elf -nographic
+	$(RISCV_QEMU) -s -S -readconfig $(QEMU)/sifive-e31.cfg -kernel $(QEMU)/qemu.elf -nographic 
 
 clean:
 	rm -rf build
@@ -54,7 +54,7 @@ APPS_SRCS = apps/app.S library/*/*.c
 GRASS_SRCS = grass/grass.S grass/*.c library/elf/*.c
 EARTH_SRCS = earth/earth.S earth/*.c earth/sd/*.c library/elf/*.c library/libc/*.c
 
-CFLAGS = -march=rv32i -mabi=ilp32 -mcmodel=medlow -ffunction-sections -fdata-sections
+CFLAGS = -g -march=rv32i -mabi=ilp32 -mcmodel=medlow -ffunction-sections -fdata-sections
 LDFLAGS = -Wl,--gc-sections -nostartfiles -nostdlib
 INCLUDE = -Ilibrary -Ilibrary/elf -Ilibrary/libc -Ilibrary/file -Ilibrary/servers
 
