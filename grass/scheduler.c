@@ -104,7 +104,7 @@ static void proc_yield() {
         proc_set_running(curr_pid);
         /* Prepare argc and argv */
         asm("mv a0, %0" ::"r"(*((int*)proc_set[proc_curr_idx].stack)));
-        asm("mv a1, %0" ::"r"((int)proc_set[proc_curr_idx].stack + 4));
+        asm("mv a1, %0" ::"r"(APPS_ARG + 4));
         /* Enter application code entry using mret */
         asm("csrw mepc, %0" ::"r"(APPS_ENTRY));
         asm("mret");
