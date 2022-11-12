@@ -11,7 +11,7 @@
 #include <string.h>
 
 int main(int argc, char** argv) {
-    if (argc == 1) {
+    if (argc <= 1) {
         int home_ino = dir_lookup(0, "home/");
         grass->workdir_ino = dir_lookup(home_ino, "yunhao/");
         strcpy(grass->workdir, "/home/yunhao");

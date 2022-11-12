@@ -18,6 +18,7 @@ void disk_init();
 void intr_init();
 void mmu_init();
 struct earth *earth = (void*)GRASS_STACK_TOP;
+struct grass *grass = (void*)APPS_STACK_TOP;
 extern char bss_start, bss_end, data_rom, data_start, data_end;
 
 static void earth_init() {

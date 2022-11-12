@@ -44,8 +44,6 @@ void intr_entry(int id) {
     case INTR_ID_SOFT:
         kernel_entry = proc_syscall;
         break;
-    default:
-        FATAL("intr_entry: got unknown interrupt #%d", id);
     }
 
     /* Switch to the grass kernel stack */
@@ -53,16 +51,24 @@ void intr_entry(int id) {
 }
 
 void ctx_entry() {
-    int mepc, tmp;
+    int tmp, mepc;
     asm("csrr %0, mepc" : "=r"(mepc));
     proc_set[proc_curr_idx].mepc = (void*) mepc;
+
+    /* Save the interrupt stack */
+    char* intr_stack = proc_set[proc_curr_idx].sp;
+    for (int i = 0; i < 0x400; i++)
+        ((char*)(proc_set[proc_curr_idx].stack) + 0x400)[i] = intr_stack[i];
 
     /* kernel_entry() is either proc_yield() or proc_syscall() */
     kernel_entry();
 
-    /* Switch back to the user application stack */
-    mepc = (int)proc_set[proc_curr_idx].mepc;
-    asm("csrw mepc, %0" ::"r"(mepc));
+    /* Restore the interrupt stack */
+    intr_stack = proc_set[proc_curr_idx].sp;
+    for (int i = 0; i < 0x400; i++)
+        intr_stack[i] = ((char*)(proc_set[proc_curr_idx].stack) + 0x400)[i];
+
+    asm("csrw mepc, %0" ::"r"(proc_set[proc_curr_idx].mepc));
     ctx_switch((void**)&tmp, proc_set[proc_curr_idx].sp);
 }
 

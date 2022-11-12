@@ -8,7 +8,7 @@
 struct process{
     int pid;
     int status;
-    void *sp, *mepc;
+    void *stack, *sp, *mepc;
     int receiver_pid; /* used when status is PROC_WAIT_TO_SEND */
 };
 extern int proc_curr_idx;
@@ -35,6 +35,7 @@ void proc_free(int);
 void proc_set_ready (int);
 void proc_set_running (int);
 void proc_set_runnable (int);
+void proc_set_stack(int, void*);
 
 void ctx_entry(void);
 void ctx_start(void** old_sp, void* new_sp);

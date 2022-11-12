@@ -132,7 +132,6 @@ void pagetable_identity_mapping(int pid) {
 }
 
 int page_table_mmu_map(int pid, int page_no, int frame_id) {
-    INFO("page_table_mmu_map: pid=%d, page_no=%x, frame_id=%x", pid, page_no, frame_id);
     if (!root_page_tables[pid].allocated) {
         /* Allocate a set of page tables for this process */
         pagetable_identity_mapping(pid);
@@ -141,22 +140,18 @@ int page_table_mmu_map(int pid, int page_no, int frame_id) {
     soft_mmu_map(pid, page_no, frame_id);
 
     /* Setup the entry in the root page table */
-    int vpn1 = page_no >> 10;
+    unsigned int vpn1 = (unsigned int)page_no >> 10;
     unsigned int *leaf;
     leaf = (unsigned int *)((root_page_tables[pid].root_page_table[vpn1] >> 1) << 3);
 
-    /* Setup the entry in the leaf page table */
+    /* Setup the entry in' the leaf page table */
     unsigned int frame_address = FRAME_CACHE_START + frame_id * PAGE_SIZE;
     int vpn0 = page_no & 0x3FF;
     leaf[vpn0] = (frame_address >> 2) | FLAG_VALID_RWX;
-
-    INFO("RETURNING");
 }
 
 int page_table_mmu_switch(int pid) {
-    INFO("page_table_mmu_switch: pid=%d", pid);
-    asm("csrw satp, %0" ::"r"(((unsigned int)root_page_tables[pid].root_page_table >> 12) | (1 << 31)));
-    INFO("RETURNING");
+    asm("csrw satp, %0" ::"r"(((unsigned int)root_page_tables[pid].root_page_table >> 12) | (1 << 31) | (pid << 22)));
 }
 
 int page_table_mmu_free(int pid) {

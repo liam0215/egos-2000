@@ -63,6 +63,7 @@ static void load_app(int pid, elf_reader reader,
     /* Setup two pages for argc, argv and stack */
     earth->mmu_alloc(&frame_no, &base);
     earth->mmu_map(pid, stack_start++, frame_no);
+    grass->proc_set_stack(pid, (void*)(FRAME_CACHE_START + frame_no * PAGE_SIZE));
 
     int* argc_addr = (int*)base;
     int* argv_addr = argc_addr + 1;
@@ -88,8 +89,6 @@ void elf_load(int pid, elf_reader reader, int argc, void** argv) {
         load_grass(reader, pheader);
     } else if (pheader->p_vaddr == APPS_ENTRY) {
         load_app(pid, reader, argc, argv, pheader);
-    } else {
-        FATAL("elf_load: ELF gives invalid p_vaddr: 0x%.8x", pheader->p_vaddr);
     }
 }
 
