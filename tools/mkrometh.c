@@ -4,13 +4,13 @@
  */
 
 /* Author: Yunhao Zhang
- * Description: create the bootROM image file (egos_bootROM.mcs)
- * the bootROM has 16MB
- *     the first 4MB is reserved for the FE310 processor
- *     the next 4MB is reserved for the earth layer binary
- *     the next 6MB is reserved for the disk image
- *     the last 2MB is currently unused
- * the output file is in Intel MCS-86 object format
+ * Description: create the bootROM image files
+ * The ROM on the Arty board has 16MB:
+ *     the first 4MB holds the FE310 processor;
+ *     the next  4MB holds the earth layer binary executable;
+ *     the next  4MB holds the disk image produced by mkfs;
+ *     the last  4MB is currently unused.
+ * The output is in binary (bootROM.bin) and Intel MCS-86 (bootROM.mcs) format.
  */
 
 #include <stdio.h>
@@ -19,62 +19,58 @@
 #include <assert.h>
 #include <sys/stat.h>
 
+#define SIZE_1MB  1 * 1024 * 1024
+#define SIZE_4MB  4 * 1024 * 1024
+
+char mem_fe310[SIZE_1MB];
+int fe310_size;
 char fe310_file[] = "fpga.bit";
-
-char output_bin[] = "bootROM.bin";
-char output_mcs[] = "bootROM.mcs";
-
-char mem_fe310[1024 * 1024];
 
 void load_fe310();
 void write_binary();
 void write_intel_mcs();
-void write_section(char* mem, int base, int size);
-
-int fe310_size;
+int load_file(char* file_name, char* print_name, char* dst);
 
 int main() {
     load_fe310();
+
+    assert(fe310_size <= SIZE_1MB);
+
     write_binary();
-//    write_intel_mcs();
-    
+    write_intel_mcs();
     return 0;
 }
 
 void write_binary() {
-    freopen(output_bin, "w", stdout);
+    freopen("bootROM.bin", "w", stdout);
 
-    for (int i = 0; i < 1024 * 1024; i++)
-        putchar(mem_fe310[i]);
+    for (int i = 0; i < SIZE_1MB; i++) putchar(mem_fe310[i]);
 
     fclose(stdout);
     fprintf(stderr, "[INFO] Finish making the bootROM binary\n");
 }
 
+void write_mcs_section(char* mem, int base, int size);
 void write_intel_mcs() {
-    freopen(output_mcs, "w", stdout);
+    freopen("bootROM.mcs", "w", stdout);
 
-    write_section(mem_fe310, 0x00, fe310_size);
+    write_mcs_section(mem_fe310, 0x00, fe310_size);
     printf(":00000001FF\n");
     
     fclose(stdout);
     fprintf(stderr, "[INFO] Finish making the bootROM mcs image\n");
 }
 
-void write_section(char* mem, int base, int size) {
-    /* using a dummy checksum */
-    char chk;
-
-    int ngroups = (size >> 16) + 1;
-    for (int i = 0; i < ngroups; i++) {
-        printf(":02000004%.4X%.2X\n", i + base, chk & 0xff);
+void write_mcs_section(char* mem, int base, int size) {
+    for (int i = 0; i < (size >> 16) + 1; i++) {
+        printf(":02000004%.4X%.2X\n", i + base, 0xFF);
         for (int j = 0; j < 0x10000; j += 16) {
             printf(":10%.4X00", j);
             for (int k = 0; k < 16; k++)
-                printf("%.2X", mem[i * 0x10000 + j + k] & 0xff);
-            printf("%.2X\n", chk & 0xff);
-            if (i * 0x10000 + j + 16 >= size)
-                return;
+                printf("%.2X", mem[i * 0x10000 + j + k] & 0xFF);
+            /* Use a dummy checksum */
+            printf("%.2X\n", 0xFF);
+            if (i * 0x10000 + j + 16 >= size) return;
         }
     }    
 }
