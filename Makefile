@@ -29,6 +29,11 @@ install:
 	$(CC) $(TOOLS)/mkrom.c -o $(TOOLS)/mkrom
 	cd $(TOOLS); ./mkrom ; rm earth.elf earth.bin
 
+ethecho:
+	@echo "$(YELLOW)-------- Create the BootROM Image --------$(END)"
+	$(CC) $(TOOLS)/mkrometh.c -o $(TOOLS)/mkrometh
+	cd $(TOOLS); ./mkrometh
+
 program:
 	@echo "$(YELLOW)-------- Program the on-board ROM --------$(END)"
 	cd $(TOOLS)/fpga/openocd; time openocd -f 7series.txt
